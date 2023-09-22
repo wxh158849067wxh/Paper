@@ -9,21 +9,77 @@
 #include<vector>
 #include<assert.h>
 #include<CGAL\Nef_nary_union_3.h>
+#include<CGAL/OFF_to_nef_3.h>
+#include <boost/filesystem.hpp>
 namespace wxh {
 
 
+
+
+
+
+	template<class Nef_polyhedron>
+	std::vector<Nef_polyhedron> construct_multi_nef_from_dir(std::string dir_path)
+	{
+		boost::filesystem::path m_path(dir_path);
+		if (!boost::filesystem::exists(m_path))
+		{
+			std::cerr << "does not exist!" << std::endl;
+			assert(false);
+		}
+		std::list<Nef_polyhedron> res;
+		/*if (!boost::filesystem::is_directory(m_path));
+		{
+			std::cerr << "not a path to dir" << std::endl;
+			exit(-1);
+		}*/
+		for (auto&& x : boost::filesystem::directory_iterator(m_path))
+		{
+			Nef_polyhedron nef;
+			boost::filesystem::path file_path = x.path();
+			std::string file_name = file_path.filename().string();
+			if (file_name.find(".off") != std::string::npos|| file_name.find(".OFF") != std::string::npos)
+			{
+				std::fstream off_file(file_path.string());
+				if (!off_file.is_open())
+				{
+					std::cerr << "文件路径不存在，或出错" << std::endl;
+				}
+				CGAL::OFF_to_nef_3(off_file, nef);
+				res.push_back(std::move(nef));
+				off_file.close();
+			}
+			else if (file_name.find(".snc") != std::string::npos || file_name.find(".SNC") != std::string::npos)
+			{
+				std::fstream snc_file(file_path.string());
+				if (!snc_file.is_open())
+				{
+					std::cerr << "文件路径不存在，或出错" << std::endl;
+				}
+				snc_file >> nef;
+				res.push_back(std::move(nef));
+				snc_file.close();
+			}
+			else if (file_name.find(".txt") != std::string::npos)
+			{
+				std::list<Nef_polyhedron> tmp_line= construct_multi_polyline_from_file<Nef_polyhedron>(file_name);
+				res.assign(tmp_line.begin(), tmp_line.end());
+			}
+		}
+		return res;
+	}
 	//从文件中构造一个可以有多个折线的nef polyhedron
 	
 
 	//从一个线段文件中构造多个Nef，一个折线为一个Nef，为接下来的计算做准备
 	template<class Nef_polyhedron_3>
-	std::vector<Nef_polyhedron_3> construct_multi_polyline_from_file(std::string filename)
+	std::list<Nef_polyhedron_3> construct_multi_polyline_from_file(std::string filename)
 	{
 		typedef typename Nef_polyhedron_3::Point_3 Point;
 		typedef typename std::vector<Point>::iterator point_iterator;
 		typedef std::pair<point_iterator, point_iterator> point_range;
 		typedef std::list<point_range> polyline;
-		std::vector<Nef_polyhedron_3> res;
+		std::list<Nef_polyhedron_3> res;
 		std::fstream file;
 		std::vector<Point> vc;
 		file.open(filename);
